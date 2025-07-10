@@ -1,0 +1,43 @@
+.rally-button {
+    font-size: 1.5rem;
+    width: 235px;
+    height: 100px;
+    padding: 15px 30px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-color: #000000;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.rally-button-2 {
+    font-size: 1.5rem;
+    width: 235px;
+    height: 100px;
+    padding: 15px 30px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-color: #ff64db;
+    color: white;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.rally-button:hover {
+    background-color: #000000;
+    border-color: #ff64db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+} 
+
+.rally-button-2:hover {
+    background-color: #ff64db;
+    border-color: #000000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+} 
