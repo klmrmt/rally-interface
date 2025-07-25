@@ -2,7 +2,7 @@ import { useState } from "react";
 import * as React from "react";
 import { Box, ToggleButtonGroup } from "@mui/material";
 import Typography from "@mui/material/Typography";
-import { ToggleButtons } from "../Components/ToggleButtons";
+import { ToggleButtons } from "../components/ToggleButtons";
 
 interface ToggleButtonsProps {
   Name: string;

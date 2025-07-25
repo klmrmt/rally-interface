@@ -3,14 +3,13 @@ import { HomeScreen } from "./HomeScreen/HomeScreen";
 import { JoinScreen } from "./JoinScreen/JoinScreen";
 import "./App.css";
 
-export const App = ()=>{
+export default function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<HomeScreen />} />
-        <Route path="/join" element={<JoinScreen/>} />
+        <Route path="/join" element={<JoinScreen />} />
       </Routes>
     </Router>
   );
 }
- 

@@ -1,6 +1,6 @@
 import RALLY from "../assets/RALLY-2.png";
-import { LinkedButtons } from "../Components/LinkedButtons";
-import RallyLogo from "../Components/RallyLogo";
+import { LinkedButtons } from "../components/LinkedButtons";
+import RallyLogo from "../components/RallyLogo";
 import { Box } from "@mui/material";
 
 export const HomeScreen = () => {
