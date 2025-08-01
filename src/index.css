@@ -13,6 +13,21 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* App.css or index.css */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
 a {
   font-weight: 500;
   color: #646cff;

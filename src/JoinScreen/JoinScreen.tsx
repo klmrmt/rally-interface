@@ -1,109 +1,151 @@
 import { useState } from "react";
-import * as React from "react";
-import { Box, ToggleButtonGroup } from "@mui/material";
+import { Box } from "@mui/material";
 import Typography from "@mui/material/Typography";
-import { ToggleButtons } from "../components/ToggleButtons";
+import Slider from "@mui/material/Slider";
+import Button from "@mui/material/Button";
+import IosShareIcon from "@mui/icons-material/IosShare";
+import { SectionLabel } from "../components/SectionLabel";
+import { ToggleButtonGroups } from "../components/ToggleButtonGroups";
+import { Background } from "../components/Background";
 
-interface ToggleButtonsProps {
+interface JoinScreenProps {
   Name: string;
-  Value: string;
+  Date: string;
   Aria: string;
 }
 
 export const JoinScreen = () => {
-  const [formats, setFormats] = React.useState(() => ["bold", "italic"]);
+  const [vibe, setVibe] = useState<string[]>([]);
+  const [location, setLocation] = useState<string[]>([]);
 
-  const handleFormat = (
+  const handleVibeChange = (
     event: React.MouseEvent<HTMLElement>,
-    newFormats: string[]
+    newVibe: string[]
   ) => {
-    setFormats(newFormats);
+    setVibe(newVibe);
+  };
+
+  const handleLocationChange = (
+    event: React.MouseEvent<HTMLElement>,
+    newLocation: string[]
+  ) => {
+    setLocation(newLocation);
+  };
+
+  const handleSubmit = () => {
+    console.log("Submitting...");
+    console.log("Vibe:", vibe);
+    console.log("Location:", location);
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "flex-start",
-        alignItems: "center",
-        minHeight: "100vh",
-        width: "100%",
-        maxWidth: { xs: "100%", sm: 500, md: 700 }, // Responsive max width
-        background: "white",
-        borderRadius: { xs: 0, sm: "8px" }, // No radius on mobile, rounded on desktop
-        boxShadow: { xs: "none", sm: "0 4px 6px rgba(0, 0, 0, 0.1)" },
-        p: { xs: 2, sm: 4 }, // Responsive padding
-      }}
-    >
-      <Typography
-        variant="h4"
-        sx={{
-          fontSize: { xs: "1.5rem", sm: "2.125rem" },
-          mb: 1,
-        }}
-      >
-        Diddy's Party
-      </Typography>
-      <Typography
-        variant="h6"
-        sx={{
-          fontSize: { xs: "1rem", sm: "1.5rem" },
-          mb: 1,
-        }}
-      >
-        We're Rallying On
-      </Typography>
-      <Typography
-        variant="body1"
-        sx={{
-          fontSize: { xs: "0.9rem", sm: "1.25rem" },
-          mb: 1,
-        }}
-      >
-        Date and Time
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{
-          fontSize: { xs: "0.8rem", sm: "1rem" },
-          mb: 2,
-          mt: { xs: 2, sm: 4 },
-          alignSelf: "flex-start", // Aligns "Vibe" to the left
-        }}
-      >
-        Vibe
-      </Typography>
-
-      <ToggleButtonGroup
-        value={formats}
-        onChange={handleFormat}
-        aria-label="text formatting"
-        sx={{
-          gap: { xs: 1, sm: 2 },
-          flexWrap: "wrap",
-          justifyContent: "flex-start",
-          "& .MuiToggleButton-root": {
-            borderRadius: 2,
-            width: { xs: 250, sm: 150 }, // Set to fit your widest button
-            fontSize: { xs: "1rem", sm: "1rem" },
-            fontWeight: "bold",
-            display: "flex-start",
-            justifyContent: "center",
+    <Background
+      InnerBox={
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-start",
             alignItems: "center",
-          },
-        }}
-      >
-        <ToggleButtons Name={"Chill😎"} Value={"first"} Aria={"Hello"} />
-        <ToggleButtons Name={"Hype🔥"} Value={"second"} Aria={"Hello"} />
-        <ToggleButtons Name={"Foodie🍽️"} Value={"third"} Aria={"Hello"} />
-        <ToggleButtons Name={"Active💃"} Value={"fourth"} Aria={"Hello"} />
-        <ToggleButtons
-          Name={"Art & Culture🎭"}
-          Value={"fifth"}
-          Aria={"Hello"}
-        />
-      </ToggleButtonGroup>
-    </Box>
+            minHeight: "100vh",
+            width: "100%",
+            maxWidth: { xs: "100%", sm: 500, md: 700 },
+            background: "white",
+            borderRadius: { xs: "8px", sm: "8px" },
+            boxShadow: { xs: "none", sm: "0 4px 6px rgba(0, 0, 0, 0.1)" },
+            p: { xs: 2, sm: 4 },
+            overflow: "auto",
+            maxHeight: "90vh",
+          }}
+        >
+          <Typography
+            variant="h4"
+            sx={{
+              fontSize: { xs: "1.5rem", sm: "2.125rem" },
+              mb: 2,
+              textAlign: "center",
+              lineHeight: 1.6,
+            }}
+          >
+            Diddy's Party
+            <br />
+            <span style={{ fontSize: "1.5rem" }}>We're Rallying On</span>
+            <br />
+            <span style={{ fontSize: "1.25rem" }}>Date and Time</span>
+          </Typography>
+
+          <SectionLabel Name={"Vibe"} />
+
+          <ToggleButtonGroups
+            value={vibe}
+            onChange={handleVibeChange}
+            options={[
+              { Name: "Chill😎", Value: "Chill", Aria: "Hello" },
+              { Name: "Hype🔥", Value: "Hype", Aria: "Hello" },
+              { Name: "Active💃", Value: "Active", Aria: "Hello" },
+              { Name: "Foodie🍽️", Value: "Foodie", Aria: "Hello" },
+              { Name: "Art & Culture 🎭", Value: "Art", Aria: "Hello" },
+            ]}
+          />
+
+          <SectionLabel Name={"Location"} />
+
+          <ToggleButtonGroups
+            value={location}
+            onChange={handleLocationChange}
+            options={[
+              { Name: "1 Mile", Value: "1 Mile", Aria: "Hello" },
+              { Name: "2 Miles", Value: "2 Miles", Aria: "Hello" },
+              { Name: "5 Miles", Value: "5 Miles", Aria: "Hello" },
+              { Name: "10 Miles", Value: "10 Miles", Aria: "Hello" },
+            ]}
+          />
+
+          <SectionLabel Name={"Price"} />
+          <Slider
+            aria-label="Cost"
+            defaultValue={30}
+            valueLabelDisplay="auto"
+            shiftStep={30}
+            step={10}
+            marks
+            min={10}
+            max={110}
+            sx={{
+              color: "#ED70C0",
+              "& .MuiSlider-thumb": {
+                width: 8,
+                height: 28,
+                borderRadius: 2, // less round = more bar-like
+                backgroundColor: "#ED70C0",
+                "&:hover, &.Mui-focusVisible, &.Mui-active": {
+                  boxShadow: "0 0 0 8px rgba(25, 118, 210, 0.16)",
+                },
+              },
+              "& .MuiSlider-track": {
+                height: 8,
+                width: 30,
+                borderRadius: 4,
+              },
+              "& .MuiSlider-rail": {
+                height: 8,
+                borderRadius: 4,
+              },
+            }}
+          />
+
+          <Button
+            variant="contained"
+            size="large"
+            onClick={handleSubmit}
+            sx={{
+              backgroundColor: "#ED70C0",
+            }}
+          >
+            Lets Rally!! <IosShareIcon />
+          </Button>
+        </Box>
+      }
+    ></Background>
   );
 };

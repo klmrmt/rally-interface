@@ -12,12 +12,15 @@ export const ToggleButtons = ({ Name, Value, Aria }: ToggleButtonsProps) => {
       value={Value}
       aria-label={Aria}
       sx={{
-        minWidth: 95,
+        px: 3,
+        py: 1.5,
         height: 40,
         backgroundColor: "#fff",
         color: "#333",
         margin: "10px",
         fontWeight: "bold",
+        whiteSpace: "nowrap",
+        textTransform: "none",
         "&.Mui-selected": {
           backgroundColor: "#000000ff",
           color: "#ED70C0",

@@ -24,10 +24,22 @@ export const LinkedButtons = ({
         backgroundColor: BackgroundColor,
         color: color,
         marginTop: "2rem",
-        width: { xs: 300, sm: 300 },
-        height: "15vh",
+        width: {
+          xs: "100px",
+          sm: "150px",
+          md: "200px",
+        },
+        height: {
+          xs: "60px",
+          sm: "62.5px",
+          md: "65px",
+        },
         font: "RethinkSans",
-        fontSize: "2rem",
+        fontSize: {
+          xs: "12.5px",
+          sm: "15px",
+          md: "20px",
+        },
         borderColor: borderColor,
         "&:hover": {
           backgroundColor: BackgroundColor,
