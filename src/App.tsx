@@ -1,35 +1,65 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./contexts/AuthContext.tsx";
+import { Login } from "./pages/Login.tsx";
+import { Dashboard } from "./pages/Dashboard.tsx";
+import { CreateRally } from "./pages/CreateRally.tsx";
+import { JoinRally } from "./pages/JoinRally.tsx";
+import { Vote } from "./pages/Vote.tsx";
+import { WaitingRoom } from "./pages/WaitingRoom.tsx";
+import { Recommendations } from "./pages/Recommendations.tsx";
+import { Result } from "./pages/Result.tsx";
 
-function App() {
-  const [count, setCount] = useState(0)
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-cream)]">
+        <div className="animate-pulse text-[var(--color-muted)]">Loading...</div>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
 }
 
-export default App
+function RootRedirect() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-cream)]">
+        <div className="animate-pulse text-[var(--color-muted)]">Loading...</div>
+      </div>
+    );
+  }
+
+  return isAuthenticated
+    ? <Navigate to="/dashboard" replace />
+    : <Navigate to="/login" replace />;
+}
+
+function App() {
+  return (
+    <div className="min-h-screen bg-[var(--color-cream)] text-[var(--color-brown)]">
+      <Routes>
+        <Route path="/" element={<RootRedirect />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/create" element={<RequireAuth><CreateRally /></RequireAuth>} />
+        <Route path="/:hexId" element={<RequireAuth><JoinRally /></RequireAuth>} />
+        <Route path="/:hexId/vote" element={<RequireAuth><Vote /></RequireAuth>} />
+        <Route path="/:hexId/waiting" element={<RequireAuth><WaitingRoom /></RequireAuth>} />
+        <Route path="/:hexId/recommendations" element={<RequireAuth><Recommendations /></RequireAuth>} />
+        <Route path="/:hexId/result" element={<RequireAuth><Result /></RequireAuth>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
+  );
+}
+
+export default App;
