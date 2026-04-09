@@ -3,6 +3,7 @@ import confetti from "canvas-confetti";
 import { trackEvent } from "../utils/analytics.ts";
 import { PageTransition } from "../components/motion";
 import { TicketCode } from "../components/TicketCode";
+import { copyToClipboard } from "../utils/clipboard";
 
 export function ShareSheet({
   hexId,
@@ -31,21 +32,10 @@ export function ShareSheet({
   }, []);
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(rallyUrl);
-      setCopied(true);
-      trackEvent("rally.shared", { method: "copy", hexId });
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const input = document.createElement("input");
-      input.value = rallyUrl;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand("copy");
-      document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    await copyToClipboard(rallyUrl);
+    setCopied(true);
+    trackEvent("rally.shared", { method: "copy", hexId });
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleNativeShare = async () => {

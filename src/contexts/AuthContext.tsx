@@ -54,8 +54,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("authUser");
+    sessionStorage.removeItem("participantToken");
     setToken(null);
     setUser(null);
+  }, []);
+
+  useEffect(() => {
+    const onAuthExpired = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener("auth:expired", onAuthExpired);
+    return () => window.removeEventListener("auth:expired", onAuthExpired);
   }, []);
 
   const updateDisplayName = useCallback((name: string) => {

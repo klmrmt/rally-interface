@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import { PageTransition, StaggerContainer, StaggerItem } from "../components/motion";
+import { copyToClipboard } from "../utils/clipboard";
 
 function useCountdown(targetDate: string | null | undefined) {
   const [timeLeft, setTimeLeft] = useState("");
@@ -10,8 +11,9 @@ function useCountdown(targetDate: string | null | undefined) {
   useEffect(() => {
     if (!targetDate) { setTimeLeft(""); return; }
 
+    const target = targetDate;
     function update() {
-      const diff = new Date(targetDate).getTime() - Date.now();
+      const diff = new Date(target).getTime() - Date.now();
       if (diff <= 0) { setTimeLeft("Closed"); return; }
       const hrs = Math.floor(diff / 3_600_000);
       const mins = Math.floor((diff % 3_600_000) / 60_000);
@@ -52,44 +54,27 @@ export function WaitingRoom() {
     refetchInterval: 3000,
   });
 
-  if (recsData && recsData.recommendations.length > 0) {
-    navigate(`/${hexId}/recommendations`, { replace: true });
-    return null;
-  }
+  const countdown = useCountdown(data?.votingClosesAt);
 
-  if (data?.status === "picking" && !recsData) {
-    // Status is picking but recs haven't loaded yet — go to recommendations page
-    // which handles owner vs non-owner rendering
-    navigate(`/${hexId}/recommendations`, { replace: true });
-    return null;
-  }
-
-  if (data?.status === "decided" || data?.status === "completed") {
-    navigate(`/${hexId}/result`, { replace: true });
-    return null;
-  }
+  useEffect(() => {
+    if (recsData && recsData.recommendations.length > 0) {
+      navigate(`/${hexId}/recommendations`, { replace: true });
+    } else if (data?.status === "picking" && !recsData) {
+      navigate(`/${hexId}/recommendations`, { replace: true });
+    } else if (data?.status === "decided" || data?.status === "completed") {
+      navigate(`/${hexId}/result`, { replace: true });
+    }
+  }, [data?.status, recsData, hexId, navigate]);
 
   const participantCount = data?.participantCount ?? 0;
   const showInvitePrompt = data?.status === "voting" && participantCount <= 2;
-  const countdown = useCountdown(data?.votingClosesAt);
 
   const shareUrl = `${window.location.origin}/rally-api/preview/${hexId}`;
 
   const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const input = document.createElement("input");
-      input.value = shareUrl;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand("copy");
-      document.body.removeChild(input);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    await copyToClipboard(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleNativeShare = async () => {

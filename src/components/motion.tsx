@@ -89,55 +89,6 @@ export function StaggerItem({
   );
 }
 
-export function CollageCard({
-  children,
-  className = "",
-  rotation: _rotation,
-}: {
-  children: ReactNode;
-  className?: string;
-  rotation?: number;
-}) {
-  return (
-    <motion.div
-      className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] ${className}`}
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2, boxShadow: "0 8px 30px rgba(0,0,0,0.06)" }}
-      transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-type ShapeKind = "circle" | "square" | "bar" | "ring";
-
-const SHAPE_STYLES: Record<ShapeKind, string> = {
-  circle: "rounded-full",
-  square: "rounded-lg",
-  bar: "rounded-full",
-  ring: "rounded-full border-2 bg-transparent!",
-};
-
-export function FloatingShape({
-  kind = "circle",
-  color,
-  size,
-  className = "",
-}: {
-  kind?: ShapeKind;
-  color: string;
-  size: string;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`absolute ${SHAPE_STYLES[kind]} ${color} ${size} ${className} opacity-40`}
-    />
-  );
-}
-
 export const ScrollSnapContainer = forwardRef<
   HTMLDivElement,
   { children: ReactNode; className?: string }
@@ -148,29 +99,6 @@ export const ScrollSnapContainer = forwardRef<
     </div>
   );
 });
-
-export function ScrollSection({
-  children,
-  className = "",
-  align = "center",
-}: {
-  children: ReactNode;
-  className?: string;
-  align?: "center" | "end" | "start";
-}) {
-  const justifyMap = {
-    center: "justify-center",
-    end: "justify-end",
-    start: "justify-start",
-  };
-  return (
-    <section className={`snap-section ${justifyMap[align]} ${className}`}>
-      <div className="w-full max-w-sm mx-auto">
-        {children}
-      </div>
-    </section>
-  );
-}
 
 export function ScrollHint({
   label = "Scroll",

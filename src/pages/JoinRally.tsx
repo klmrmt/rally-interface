@@ -4,25 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { ScrollSnapContainer, ScrollHint } from "../components/motion";
-
-function navigateByStatus(navigate: ReturnType<typeof useNavigate>, hexId: string, status: string, hasVoted: boolean) {
-  if (status === "voting") {
-    if (hasVoted) {
-      navigate(`/${hexId}/waiting`, { replace: true });
-    } else {
-      navigate(`/${hexId}/vote`, { replace: true });
-    }
-  } else if (status === "picking" || status === "recommending") {
-    navigate(`/${hexId}/recommendations`, { replace: true });
-  } else {
-    navigate(`/${hexId}/result`, { replace: true });
-  }
-}
+import { navigateByStatus } from "../utils/navigation";
 
 export function JoinRally() {
   const { hexId } = useParams<{ hexId: string }>();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateDisplayName, logout } = useAuth();
   const [displayName, setDisplayName] = useState(user?.displayName || "");
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState("");
@@ -32,7 +19,7 @@ export function JoinRally() {
     setDisplayName(user?.displayName || "");
   }, [user?.displayName]);
 
-  const { data: rallyInfo, isLoading, isError, error: queryError } = useQuery({
+  const { data: rallyInfo, isLoading, error: queryError } = useQuery({
     queryKey: ["rally-info", hexId],
     queryFn: () => api.getRallyInfo(hexId!),
     enabled: !!hexId,
@@ -79,11 +66,16 @@ export function JoinRally() {
       sessionStorage.setItem("participantId", result.participant.id);
       sessionStorage.setItem("displayName", result.participant.displayName);
 
+      if (name && !user?.displayName) {
+        updateDisplayName(name);
+        api.updateMe(name).catch(() => {});
+      }
+
       navigateByStatus(navigate, hexId, result.rally.status, result.hasVoted);
-    } catch (err: any) {
-      const msg = err.message || "Failed to join";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to join";
       if (msg.includes("log in again")) {
-        localStorage.removeItem("authToken");
+        logout();
         navigate(`/login?redirect=/${hexId}`);
         return;
       }

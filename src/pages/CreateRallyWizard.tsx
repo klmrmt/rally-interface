@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { useReward } from "react-rewards";
+import confetti from "canvas-confetti";
 import { api } from "../api.ts";
 import { ShareSheet } from "../components/ShareSheet.tsx";
 import { PinDropMap } from "../components/PinDropMap.tsx";
@@ -88,7 +88,6 @@ function NextButton({
       disabled={disabled || loading}
       className="w-full bg-[var(--color-text)] hover:bg-[var(--color-text)]/80 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl text-base transition-colors relative"
     >
-      <span id="createReward" className="absolute left-1/2 top-1/2" />
       {loading ? "Creating..." : label}
     </button>
   );
@@ -137,12 +136,9 @@ export function CreateRallyWizard() {
   const [hydrating, setHydrating] = useState(!!searchParams.get("draft"));
   const savingRef = useRef(false);
 
-  const { reward: rewardEmoji } = useReward("createReward", "emoji", {
-    emoji: ["🎉", "✨", "🎊"],
-    elementCount: 12,
-    spread: 50,
-    lifetime: 200,
-  });
+  const fireConfetti = () => {
+    confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 }, colors: ["#F5B800", "#1A1A1A", "#10B981"] });
+  };
 
   const handlePinChange = useCallback(
     (newPin: { lat: number; lng: number }, locationName: string) => {
@@ -180,7 +176,7 @@ export function CreateRallyWizard() {
       if (typeof d.groupName === "string") setGroupName(d.groupName);
       if (typeof d.callToRally === "string") setCallToRally(d.callToRally);
       if (typeof d.location === "string") setLocation(d.location);
-      if (d.pin && typeof (d.pin as any).lat === "number" && typeof (d.pin as any).lng === "number") {
+      if (d.pin && typeof (d.pin as Record<string, unknown>).lat === "number" && typeof (d.pin as Record<string, unknown>).lng === "number") {
         setPin(d.pin as { lat: number; lng: number });
       }
       if (typeof d.radiusMiles === "number") setRadiusMiles(d.radiusMiles);
@@ -294,7 +290,7 @@ export function CreateRallyWizard() {
       return;
     }
 
-    rewardEmoji();
+    fireConfetti();
     setCreating(true);
 
     try {
@@ -311,8 +307,8 @@ export function CreateRallyWizard() {
       });
       setCreatedHexId(result.hexId);
       setVotingClosesAt(result.votingClosesAt);
-    } catch (err: any) {
-      const msg = err.message || "Failed to create rally";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to create rally";
       if (msg === "Validation failed") {
         setError("Something looks off. Please check your details and try again.");
       } else {

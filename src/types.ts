@@ -28,7 +28,6 @@ export type ConstraintVote = {
 
 export type Recommendation = {
   id: string;
-  rallyId: string;
   name: string;
   category: string | null;
   whyItFits: string | null;
@@ -37,17 +36,9 @@ export type Recommendation = {
   rating: number | null;
   imageUrl: string | null;
   mapsUrl: string | null;
-};
-
-export type VoteTally = {
-  recommendationId: string;
-  count: number;
-};
-
-export type Feedback = {
-  id: string;
-  liked: boolean;
-  tags: string[];
+  latitude: number | null;
+  longitude: number | null;
+  address: string | null;
 };
 
 export type ApiResponse<T = undefined> = {
@@ -71,4 +62,66 @@ export type RallySummary = {
   location: string | null;
   participantCount: number;
   role: "creator" | "participant";
+};
+
+export type VoteStatus = {
+  status: string;
+  voteCount: number;
+  participantCount: number;
+  votingClosesAt: string | null;
+  hasVoted: boolean;
+  isOwner: boolean;
+  participants: Array<{ id: string; displayName: string }>;
+};
+
+export type JoinResult = {
+  participant: { id: string; displayName: string };
+  token: string;
+  alreadyJoined: boolean;
+  hasVoted: boolean;
+  rally: {
+    hexId: string;
+    groupName: string;
+    scheduledTime: string;
+    callToAction: string;
+    status: string;
+    location: string | null;
+    votingClosesAt: string | null;
+  };
+};
+
+export type RallyDetail = {
+  id: string;
+  hexId: string;
+  groupName: string;
+  scheduledTime: string;
+  callToAction: string;
+  status: string;
+  location: string | null;
+  radiusMiles: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  votingClosesAt: string | null;
+};
+
+export type Draft = {
+  id: string;
+  userId: string;
+  step: number;
+  data: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ResultData = {
+  status: string;
+  winner: Recommendation | null;
+  recommendations: Recommendation[];
+};
+
+export type RecommendationsData = {
+  status: string;
+  recommendations: Recommendation[];
+  participantCount: number;
+  isOwner: boolean;
 };

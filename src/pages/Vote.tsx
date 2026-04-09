@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useReward } from "react-rewards";
+import confetti from "canvas-confetti";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api.ts";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { ScrollSnapContainer, ScrollHint } from "../components/motion";
+import { navigateByStatus } from "../utils/navigation";
 
 const BUDGET_OPTIONS = [
   { value: "$", label: "$" },
@@ -30,7 +31,7 @@ const DISTANCE_OPTIONS = [
 export function Vote() {
   const { hexId } = useParams<{ hexId: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, updateDisplayName } = useAuth();
   const [budget, setBudget] = useState("");
   const [vibes, setVibes] = useState<string[]>([]);
   const [distance, setDistance] = useState("");
@@ -46,12 +47,10 @@ export function Vote() {
     const sections = container.querySelectorAll(".snap-section");
     sections[index]?.scrollIntoView({ behavior: "smooth" });
   };
-  const { reward: rewardConfetti } = useReward("voteReward", "confetti", {
-    elementCount: 30,
-    spread: 60,
-    lifetime: 150,
-    colors: ["#F5B800", "#1A1A1A", "#10B981"],
-  });
+
+  const fireConfetti = () => {
+    confetti({ particleCount: 30, spread: 60, origin: { y: 0.6 }, colors: ["#F5B800", "#1A1A1A", "#10B981"] });
+  };
 
   const { data: rallyInfo } = useQuery({
     queryKey: ["rally-info", hexId],
@@ -78,10 +77,15 @@ export function Vote() {
           sessionStorage.setItem("participantToken", joinResult.token);
           sessionStorage.setItem("participantId", joinResult.participant.id);
           sessionStorage.setItem("displayName", joinResult.participant.displayName);
+          if (pendingName && !user?.displayName) {
+            updateDisplayName(pendingName);
+            api.updateMe(pendingName).catch(() => {});
+          }
           await api.submitVote(hexId, vote);
           navigate(`/${hexId}/waiting`, { replace: true });
-        } catch (err: any) {
-          setError(err.message || "Failed to submit vote");
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Failed to submit vote";
+          setError(msg);
           setBudget(vote.budget);
           setVibes(vote.vibes);
           setDistance(vote.distance);
@@ -98,9 +102,7 @@ export function Vote() {
     if (!participantToken) return;
     api.getVoteStatus(hexId).then((data) => {
       if (data.hasVoted) {
-        if (data.status === "voting" || data.status === "recommending") navigate(`/${hexId}/waiting`, { replace: true });
-        else if (data.status === "picking") navigate(`/${hexId}/recommendations`, { replace: true });
-        else navigate(`/${hexId}/result`, { replace: true });
+        navigateByStatus(navigate, hexId, data.status, data.hasVoted);
       }
     }).catch(() => {});
   }, [hexId, navigate, isAuthenticated]);
@@ -125,7 +127,7 @@ export function Vote() {
       navigate(`/login?redirect=/${hexId}/vote`);
       return;
     }
-    rewardConfetti();
+    fireConfetti();
     setSubmitting(true);
     setError("");
     try {
@@ -137,11 +139,15 @@ export function Vote() {
         sessionStorage.setItem("participantToken", joinResult.token);
         sessionStorage.setItem("participantId", joinResult.participant.id);
         sessionStorage.setItem("displayName", joinResult.participant.displayName);
+        if (pendingName && !user?.displayName) {
+          updateDisplayName(pendingName);
+          api.updateMe(pendingName).catch(() => {});
+        }
       }
       await api.submitVote(hexId, voteData);
       navigate(`/${hexId}/waiting`);
-    } catch (err: any) {
-      setError(err.message || "Failed to submit vote");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to submit vote");
       setSubmitting(false);
     }
   };
@@ -244,7 +250,6 @@ export function Vote() {
           <div className="mt-14">
             <button onClick={handleSubmit} disabled={!canSubmit || submitting}
               className="w-full bg-[var(--color-text)] hover:bg-[var(--color-text)]/80 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl text-base transition-colors relative">
-              <span id="voteReward" className="absolute left-1/2 top-1/2" />
               {submitting ? "Sending..." : "Lock it in"}
             </button>
           </div>

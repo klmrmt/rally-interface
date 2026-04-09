@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../api.ts";
 import { LocationMap } from "../components/LocationMap.tsx";
@@ -9,7 +9,6 @@ import { PageTransition, StaggerContainer, StaggerItem } from "../components/mot
 export function Recommendations() {
   const { hexId } = useParams<{ hexId: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);

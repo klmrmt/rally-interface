@@ -27,6 +27,16 @@ const STATUS_COLORS: Record<RallyStatus, string> = {
   completed: "bg-[var(--color-surface)] text-[var(--color-text-tertiary)]",
 };
 
+function getUpdateText(rally: RallySummary): string | null {
+  if (rally.status === "decided" || rally.status === "completed")
+    return "Activity decided \u2014 tap to see the pick";
+  if (rally.status === "picking")
+    return "Organizer is choosing the spot";
+  if (rally.status === "recommending")
+    return "Votes are in \u2014 generating picks";
+  return null;
+}
+
 function RallyCard({
   rally,
   isPast,
@@ -88,6 +98,12 @@ function RallyCard({
           </span>
         )}
       </div>
+
+      {getUpdateText(rally) && (
+        <p className="mt-2 text-xs font-bold text-[var(--color-warm-hover)] tracking-wide">
+          {getUpdateText(rally)}
+        </p>
+      )}
 
       {onRallyAgain && (rally.status === "decided" || rally.status === "completed") && (
         <span

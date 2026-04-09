@@ -1,6 +1,18 @@
-import type { ApiResponse } from "./types";
+import type {
+  ApiResponse,
+  RallyInfo,
+  User,
+  RallySummary,
+  JoinResult,
+  VoteStatus,
+  RecommendationsData,
+  ResultData,
+  Recommendation,
+  RallyDetail,
+  Draft,
+} from "./types";
 
-const API_BASE = "/rally-api";
+const API_BASE = import.meta.env.VITE_API_BASE || "/rally-api";
 
 const AUTH_EXPIRED_PATTERNS = [
   "log in again",
@@ -19,6 +31,7 @@ function handleAuthExpired() {
   localStorage.removeItem("authToken");
   localStorage.removeItem("authUser");
   sessionStorage.removeItem("participantToken");
+  window.dispatchEvent(new CustomEvent("auth:expired"));
   window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
 }
 
@@ -63,8 +76,16 @@ async function request<T>(
 
   if (!res.ok || !data.success) {
     let message = data.message || "Request failed";
-    if (data.data?.errors?.length) {
-      message = data.data.errors.map((e: { message: string }) => e.message).join(". ");
+    if (
+      data.data &&
+      typeof data.data === "object" &&
+      "errors" in data.data &&
+      Array.isArray((data.data as Record<string, unknown>).errors)
+    ) {
+      const errors = (data.data as Record<string, unknown>).errors as Array<{ message: string }>;
+      if (errors.length) {
+        message = errors.map((e) => e.message).join(". ");
+      }
     }
     if (isAuthExpiredMessage(message)) {
       handleAuthExpired();
@@ -98,147 +119,51 @@ export const api = {
     }),
 
   verifyOTP: (phoneNumber: string, mfaCode: string) =>
-    request<{
-      token: string;
-      user: { userId: string; displayName: string | null };
-    }>("/auth/otp/verify", {
+    request<{ token: string; user: User }>("/auth/otp/verify", {
       method: "POST",
       body: JSON.stringify({ phoneNumber, mfaCode }),
     }),
 
-  getMe: () =>
-    authRequest<{ userId: string; displayName: string | null }>("/user/me"),
+  getMe: () => authRequest<User>("/user/me"),
 
   updateMe: (displayName: string) =>
-    authRequest<{ userId: string; displayName: string | null }>("/user/me", {
+    authRequest<User>("/user/me", {
       method: "PATCH",
       body: JSON.stringify({ displayName }),
     }),
 
   getMyRallies: () =>
-    authRequest<{
-      rallies: Array<{
-        id: string;
-        hexId: string;
-        groupName: string;
-        scheduledTime: string;
-        callToAction: string;
-        status: string;
-        location: string | null;
-        participantCount: number;
-        role: "creator" | "participant";
-      }>;
-    }>("/user/rallies"),
+    authRequest<{ rallies: RallySummary[] }>("/user/rallies"),
 
   getRallyInfo: (hexId: string) =>
-    request<{
-      hexId: string;
-      groupName: string;
-      scheduledTime: string;
-      callToAction: string;
-      status: string;
-      location: string | null;
-      votingClosesAt: string | null;
-      participantCount: number;
-    }>(`/session/${hexId}`),
+    request<RallyInfo>(`/session/${hexId}`),
 
   joinRally: (hexId: string, displayName?: string) =>
-    authRequest<{
-      participant: { id: string; displayName: string };
-      token: string;
-      alreadyJoined: boolean;
-      hasVoted: boolean;
-      rally: {
-        hexId: string;
-        groupName: string;
-        scheduledTime: string;
-        callToAction: string;
-        status: string;
-        location: string | null;
-        votingClosesAt: string | null;
-      };
-    }>(`/session/${hexId}/join`, {
+    authRequest<JoinResult>(`/session/${hexId}/join`, {
       method: "POST",
       body: JSON.stringify(displayName ? { displayName } : {}),
     }),
 
-  submitVote: (
-    hexId: string,
-    vote: { budget: string; vibes: string[]; distance: string }
-  ) =>
+  submitVote: (hexId: string, vote: { budget: string; vibes: string[]; distance: string }) =>
     request<{ vote: unknown }>(`/session/${hexId}/vote`, {
       method: "POST",
       body: JSON.stringify(vote),
     }),
 
   getVoteStatus: (hexId: string) =>
-    request<{
-      status: string;
-      voteCount: number;
-      participantCount: number;
-      votingClosesAt: string | null;
-      hasVoted: boolean;
-      isOwner: boolean;
-      participants: Array<{ id: string; displayName: string }>;
-    }>(`/session/${hexId}/votes`),
+    request<VoteStatus>(`/session/${hexId}/votes`),
 
   getRecommendations: (hexId: string) =>
-    request<{
-      status: string;
-      recommendations: Array<{
-        id: string;
-        name: string;
-        category: string | null;
-        whyItFits: string | null;
-        distanceLabel: string | null;
-        priceLevel: string | null;
-        rating: number | null;
-        imageUrl: string | null;
-        mapsUrl: string | null;
-        latitude: number | null;
-        longitude: number | null;
-        address: string | null;
-      }>;
-      participantCount: number;
-      isOwner: boolean;
-    }>(`/session/${hexId}/recommendations`),
+    request<RecommendationsData>(`/session/${hexId}/recommendations`),
 
   selectWinner: (hexId: string, recommendationId: string) =>
-    authRequest<{ recommendation: unknown }>(`/session/${hexId}/select`, {
+    authRequest<{ recommendation: Recommendation }>(`/session/${hexId}/select`, {
       method: "POST",
       body: JSON.stringify({ recommendationId }),
     }),
 
   getResult: (hexId: string) =>
-    request<{
-      status: string;
-      winner: {
-        id: string;
-        name: string;
-        category: string | null;
-        whyItFits: string | null;
-        priceLevel: string | null;
-        rating: number | null;
-        imageUrl: string | null;
-        mapsUrl: string | null;
-        latitude: number | null;
-        longitude: number | null;
-        address: string | null;
-      } | null;
-      recommendations: Array<{
-        id: string;
-        name: string;
-        category: string | null;
-        whyItFits: string | null;
-        priceLevel: string | null;
-        rating: number | null;
-        imageUrl: string | null;
-        mapsUrl: string | null;
-        latitude: number | null;
-        longitude: number | null;
-        address: string | null;
-      }>;
-    }>(`/session/${hexId}/result`),
+    request<ResultData>(`/session/${hexId}/result`),
 
   submitFeedback: (hexId: string, liked: boolean, tags: string[]) =>
     request<{ feedback: unknown }>(`/session/${hexId}/feedback`, {
@@ -252,7 +177,7 @@ export const api = {
     }),
 
   generateRecommendations: (hexId: string) =>
-    authRequest<{ recommendations: Array<unknown> }>(
+    authRequest<{ recommendations: Recommendation[] }>(
       `/session/${hexId}/generate-recommendations`,
       { method: "POST" },
     ),
@@ -268,57 +193,22 @@ export const api = {
     votingDurationMinutes?: number;
     draftId?: string;
   }) =>
-    authRequest<{
-      id: string;
-      hexId: string;
-      groupName: string;
-      scheduledTime: string;
-      callToAction: string;
-      status: string;
-      location: string | null;
-      radiusMiles: number | null;
-      latitude: number | null;
-      longitude: number | null;
-      votingClosesAt: string | null;
-    }>("/rally/create", {
+    authRequest<RallyDetail>("/rally/create", {
       method: "POST",
       body: JSON.stringify(data),
     }),
 
   getDrafts: () =>
-    authRequest<{
-      drafts: Array<{
-        id: string;
-        userId: string;
-        step: number;
-        data: Record<string, unknown>;
-        createdAt: string;
-        updatedAt: string;
-      }>;
-    }>("/rally/drafts"),
+    authRequest<{ drafts: Draft[] }>("/rally/drafts"),
 
   createDraft: (step: number, data: Record<string, unknown>) =>
-    authRequest<{
-      id: string;
-      userId: string;
-      step: number;
-      data: Record<string, unknown>;
-      createdAt: string;
-      updatedAt: string;
-    }>("/rally/drafts", {
+    authRequest<Draft>("/rally/drafts", {
       method: "POST",
       body: JSON.stringify({ step, data }),
     }),
 
   updateDraft: (id: string, step: number, data: Record<string, unknown>) =>
-    authRequest<{
-      id: string;
-      userId: string;
-      step: number;
-      data: Record<string, unknown>;
-      createdAt: string;
-      updatedAt: string;
-    }>(`/rally/drafts/${id}`, {
+    authRequest<Draft>(`/rally/drafts/${id}`, {
       method: "PUT",
       body: JSON.stringify({ step, data }),
     }),
@@ -337,19 +227,7 @@ export const api = {
     latitude?: number | null;
     longitude?: number | null;
   }) =>
-    authRequest<{
-      id: string;
-      hexId: string;
-      groupName: string;
-      scheduledTime: string;
-      callToAction: string;
-      status: string;
-      location: string | null;
-      radiusMiles: number | null;
-      latitude: number | null;
-      longitude: number | null;
-      votingClosesAt: string | null;
-    }>(`/rally/${hexId}`, {
+    authRequest<RallyDetail>(`/rally/${hexId}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
