@@ -72,7 +72,14 @@ async function request<T>(
     throw new Error(message);
   }
 
-  const data: ApiResponse<T> = await res.json();
+  let data: ApiResponse<T>;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(
+      res.ok ? "Invalid response from server" : `Request failed (${res.status})`
+    );
+  }
 
   if (!res.ok || !data.success) {
     let message = data.message || "Request failed";
