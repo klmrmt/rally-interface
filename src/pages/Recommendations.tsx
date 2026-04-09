@@ -1,16 +1,10 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../api.ts";
 import { LocationMap } from "../components/LocationMap.tsx";
-
-const CARD_COLORS = [
-  "bg-[#D4A574]",
-  "bg-[#7BAE7F]",
-  "bg-[#B8A0D2]",
-  "bg-[#E8B4B4]",
-  "bg-[#A0C4E8]",
-];
+import { PageTransition, StaggerContainer, StaggerItem } from "../components/motion";
 
 export function Recommendations() {
   const { hexId } = useParams<{ hexId: string }>();
@@ -18,14 +12,19 @@ export function Recommendations() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [voted, setVoted] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["recommendations", hexId],
     queryFn: () => api.getRecommendations(hexId!),
     enabled: !!hexId,
-    refetchInterval: voted ? 3000 : false,
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (!d) return false;
+      if (!d.isOwner) return 3000;
+      return false;
+    },
   });
 
   if (data?.status === "decided" || data?.status === "completed") {
@@ -33,16 +32,15 @@ export function Recommendations() {
     return null;
   }
 
-  const handlePick = async () => {
+  const isOwner = data?.isOwner ?? false;
+
+  const handleSelect = async () => {
     if (!hexId || !selectedId) return;
     setSubmitting(true);
     try {
-      await api.submitPick(hexId, selectedId);
-      setVoted(true);
-      queryClient.invalidateQueries({ queryKey: ["recommendations", hexId] });
+      await api.selectWinner(hexId, selectedId);
+      navigate(`/${hexId}/result`, { replace: true });
     } catch {
-      // ignore
-    } finally {
       setSubmitting(false);
     }
   };
@@ -50,163 +48,125 @@ export function Recommendations() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-[var(--color-muted)] animate-pulse">
-          Loading recommendations...
-        </div>
+        <div className="text-[var(--color-text-secondary)] animate-pulse">Loading recommendations...</div>
       </div>
     );
   }
 
   const recs = data?.recommendations || [];
-  const tally = data?.voteTally || [];
-  const tallyMap = new Map(tally.map((t) => [t.recommendationId, t.count]));
-  const totalFinalVotes = data?.finalVoteCount ?? 0;
-  const participantCount = data?.participantCount ?? 0;
+
+  if (!isOwner) {
+    return (
+      <PageTransition className="min-h-screen flex flex-col items-center justify-center px-6 bg-[var(--color-warm)]">
+        <div className="w-full max-w-sm">
+          <p className="text-xs uppercase tracking-[0.2em] font-medium text-[var(--color-text)]/40 mb-4">
+            Hang tight
+          </p>
+          <h1 className="text-5xl font-black tracking-tight leading-[0.95] mb-4">
+            The organizer is picking the spot
+          </h1>
+          <p className="text-[var(--color-text)]/50 text-base mb-8">
+            You'll be notified once the final location is chosen.
+          </p>
+          <div className="flex items-center gap-2 text-[var(--color-text)]/30">
+            <div className="w-2 h-2 rounded-full bg-[var(--color-text)]/20 animate-pulse" />
+            <span className="text-sm">Waiting for selection...</span>
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  const selected = recs.find((r) => r.id === selectedId);
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-8">
+    <PageTransition className="min-h-screen flex flex-col px-6 py-8">
       <div className="w-full max-w-sm mx-auto flex-1">
-        <h1 className="text-3xl font-bold mb-1">
-          {voted ? "Vote for your favorite" : "Perfect for your group"}
+        <div className="h-1.5 w-full bg-[var(--color-warm)] rounded-full mb-8" />
+
+        <h1 className="text-4xl font-black tracking-tight mb-1">
+          Choose the spot
         </h1>
-        <p className="text-[var(--color-muted)] text-sm mb-6">
-          {voted
-            ? `${totalFinalVotes} of ${participantCount} friends voted`
-            : "Tap to see more details"}
+        <p className="text-[var(--color-text-secondary)] text-sm mb-8">
+          Your group's preferences led to these picks
         </p>
 
-        <div className="space-y-5 mb-8">
+        <StaggerContainer className="space-y-0 mb-8">
           {recs.map((rec, index) => {
-            const votes = tallyMap.get(rec.id) || 0;
             const isSelected = selectedId === rec.id;
-            const colorClass = CARD_COLORS[index % CARD_COLORS.length];
-
-            if (voted) {
-              return (
-                <div
-                  key={rec.id}
-                  className={`rounded-2xl overflow-hidden transition-all ${
-                    isSelected
-                      ? "bg-gradient-to-br from-[var(--color-sand)] to-[var(--color-sand-dark)] text-white"
-                      : "bg-[var(--color-card)]"
-                  }`}
-                >
-                  {isSelected && rec.latitude && rec.longitude && (
-                    <div className="h-36">
-                      <LocationMap
-                        latitude={rec.latitude}
-                        longitude={rec.longitude}
-                        name={rec.name}
-                        className="h-full"
-                      />
-                    </div>
-                  )}
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="font-bold text-lg">{rec.name}</h3>
-                      <span className={`text-xs font-medium px-3 py-1 rounded-full shrink-0 ${
-                        isSelected
-                          ? "bg-white/20 text-white"
-                          : "bg-[var(--color-chip)] text-[var(--color-brown)]"
-                      }`}>
-                        {votes} vote{votes !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    {rec.whyItFits && (
-                      <p className={`text-sm mt-2 ${isSelected ? "text-white/80" : "text-[var(--color-muted)]"}`}>
-                        {rec.whyItFits}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-3">
-                      {rec.priceLevel && (
-                        <span className={`text-xs px-2.5 py-1 rounded-full ${
-                          isSelected ? "bg-white/20" : "bg-[var(--color-chip)]"
-                        }`}>{rec.priceLevel}</span>
-                      )}
-                      {rec.distanceLabel && (
-                        <span className={`text-xs px-2.5 py-1 rounded-full ${
-                          isSelected ? "bg-white/20" : "bg-[var(--color-chip)]"
-                        }`}>{rec.distanceLabel}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            }
 
             return (
-              <button
-                key={rec.id}
-                onClick={() => setSelectedId(rec.id)}
-                onMouseEnter={() => setHoveredId(rec.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                className={`w-full text-left rounded-2xl overflow-hidden transition-all ${
-                  isSelected
-                    ? "ring-3 ring-[var(--color-sand)]"
-                    : ""
-                }`}
-              >
-                {rec.latitude && rec.longitude && (hoveredId === rec.id || isSelected) ? (
-                  <div className="h-36">
-                    <LocationMap
-                      latitude={rec.latitude}
-                      longitude={rec.longitude}
-                      name={rec.name}
-                      className="h-full"
-                    />
-                  </div>
-                ) : (
-                  <div className={`h-28 ${colorClass}`} />
-                )}
-                <div className="bg-[var(--color-card)] p-5">
-                  <h3 className="font-bold text-lg mb-1">{rec.name}</h3>
-                  {rec.whyItFits && (
-                    <p className="text-[var(--color-muted)] text-sm mb-3">
-                      {rec.whyItFits}
-                    </p>
+              <StaggerItem key={rec.id}>
+                <motion.button onClick={() => { setSelectedId(rec.id); setConfirming(false); }}
+                  onMouseEnter={() => setHoveredId(rec.id)} onMouseLeave={() => setHoveredId(null)}
+                  layout whileHover={{ y: -1 }} transition={{ duration: 0.2 }}
+                  className={`w-full text-left py-5 ${index < recs.length - 1 ? "border-b border-[var(--color-border)]" : ""} transition-all ${
+                    isSelected ? "bg-[var(--color-warm-light)] -mx-4 px-4 rounded-xl border-none" : ""
+                  }`}>
+                  {rec.imageUrl && (hoveredId === rec.id || isSelected) && (
+                    <div className="h-36 rounded-xl overflow-hidden mb-4">
+                      <img src={rec.imageUrl} alt={rec.name} className="w-full h-full object-cover" />
+                    </div>
                   )}
-                  <div className="flex items-center gap-2">
-                    {rec.priceLevel && (
-                      <span className="text-xs px-2.5 py-1 bg-[var(--color-chip)] rounded-full">
-                        {rec.priceLevel}
-                      </span>
-                    )}
-                    {rec.distanceLabel && (
-                      <span className="text-xs px-2.5 py-1 bg-[var(--color-chip)] rounded-full">
-                        {rec.distanceLabel}
-                      </span>
-                    )}
-                    {rec.category && (
-                      <span className="text-xs px-2.5 py-1 bg-[var(--color-chip)] rounded-full">
-                        {rec.category}
-                      </span>
+                  {!rec.imageUrl && rec.latitude && rec.longitude && (hoveredId === rec.id || isSelected) && (
+                    <div className="h-36 rounded-xl overflow-hidden mb-4">
+                      <LocationMap latitude={rec.latitude} longitude={rec.longitude} name={rec.name} className="h-full" />
+                    </div>
+                  )}
+                  <div className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-2.5 shrink-0 ${isSelected ? "bg-[var(--color-warm)]" : "bg-[var(--color-border)]"}`} />
+                    <div className="flex-1">
+                      <h3 className="font-black text-xl">{rec.name}</h3>
+                      {rec.whyItFits && <p className="text-[var(--color-text-secondary)] text-sm mt-1">{rec.whyItFits}</p>}
+                      {isSelected && rec.address && (
+                        <p className="text-[var(--color-text-secondary)] text-xs mt-1">{rec.address}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2">
+                        {rec.priceLevel && <span className="text-xs text-[var(--color-text-secondary)]">{rec.priceLevel}</span>}
+                        {rec.rating && <span className="text-xs text-[var(--color-text-secondary)]">&#9733; {rec.rating}</span>}
+                        {rec.distanceLabel && <span className="text-xs text-[var(--color-text-secondary)]">{rec.distanceLabel}</span>}
+                        {rec.category && <span className="text-xs text-[var(--color-text-secondary)]">{rec.category}</span>}
+                      </div>
+                    </div>
+                    {isSelected && (
+                      <span className="text-[var(--color-warm)] text-lg mt-1">&rarr;</span>
                     )}
                   </div>
-                </div>
-              </button>
+                </motion.button>
+              </StaggerItem>
             );
           })}
-        </div>
+        </StaggerContainer>
       </div>
 
       <div className="w-full max-w-sm mx-auto pb-4">
-        {!voted ? (
-          <button
-            onClick={handlePick}
-            disabled={!selectedId || submitting}
-            className="w-full bg-[var(--color-sand)] hover:bg-[var(--color-sand-dark)] disabled:bg-[var(--color-chip)] disabled:text-[var(--color-muted)] disabled:cursor-not-allowed text-white font-semibold py-4 rounded-full text-lg transition-colors"
-          >
-            {submitting ? "Submitting..." : "Lock in my pick"}
-          </button>
-        ) : (
-          <button
-            onClick={() => navigate(`/${hexId}/result`)}
-            className="w-full bg-[var(--color-sand)] hover:bg-[var(--color-sand-dark)] text-white font-semibold py-4 rounded-full text-lg transition-colors"
-          >
-            See Results
-          </button>
-        )}
+        <AnimatePresence mode="wait">
+          {confirming && selected ? (
+            <motion.div key="confirm" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <p className="text-center text-sm text-[var(--color-text-secondary)] mb-3">
+                Lock in <span className="font-bold text-[var(--color-text)]">{selected.name}</span>?
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setConfirming(false)}
+                  className="flex-1 bg-[var(--color-text)]/5 text-[var(--color-text)] font-bold py-3.5 rounded-xl text-base transition-colors hover:bg-[var(--color-text)]/10">
+                  Go back
+                </button>
+                <button onClick={handleSelect} disabled={submitting}
+                  className="flex-1 bg-[var(--color-text)] hover:bg-[var(--color-text)]/80 disabled:opacity-40 text-white font-bold py-3.5 rounded-xl text-base transition-colors">
+                  {submitting ? "Locking in..." : "Lock it in"}
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div key="select" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+              <button onClick={() => { if (selectedId) setConfirming(true); }} disabled={!selectedId}
+                className="w-full bg-[var(--color-text)] hover:bg-[var(--color-text)]/80 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl text-base transition-colors">
+                Choose this spot
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </PageTransition>
   );
 }

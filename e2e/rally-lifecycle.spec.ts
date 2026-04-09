@@ -92,31 +92,46 @@ test.describe.serial("Rally full lifecycle", () => {
     await authenticatePage(page, authToken);
     await page.goto("/dashboard");
 
-    await expect(page.getByText("Hey,")).toBeVisible();
-    await expect(page.getByText("+ Create Rally")).toBeVisible();
+    await expect(page.getByRole("button", { name: "New rally" })).toBeVisible();
+    await expect(page.getByPlaceholder("Join code")).toBeVisible();
   });
 
-  test("2 - Create a new rally", async ({ page }) => {
+  test("2 - Create a new rally via wizard", async ({ page }) => {
     await authenticatePage(page, authToken);
     await page.goto("/create");
 
-    await expect(page.getByText("Create a Rally")).toBeVisible();
-
+    // Step 1: Group name
+    await expect(page.getByText("Step 1 of 4")).toBeVisible();
     await page.getByPlaceholder("Friday Night Crew").fill("E2E Test Hangout");
-    await page.getByPlaceholder("Bring your own snacks!").fill("Automated test rally");
+    await page.getByRole("button", { name: "Next" }).click();
 
+    // Step 2: Date & time — pick tomorrow's date from the calendar
+    await expect(page.getByText("Step 2 of 4")).toBeVisible();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(19, 0, 0, 0);
-    const dateStr = tomorrow.toISOString().slice(0, 16);
-    await page.locator('input[type="datetime-local"]').fill(dateStr);
+    const dayNumber = tomorrow.getDate().toString();
+    await page.locator("button").filter({ hasText: new RegExp(`^${dayNumber}$`) }).first().click();
+    await page.getByRole("button", { name: "Next" }).click();
 
-    await page.getByPlaceholder("Chicago, IL").fill("San Francisco, CA");
+    // Step 3: Call to action — skip
+    await expect(page.getByText("Step 3 of 4")).toBeVisible();
+    await page.getByText("Skip for now").click();
 
+    // Step 4: Location — skip, then create
+    await expect(page.getByText("Step 4 of 4")).toBeVisible();
     await page.getByRole("button", { name: "Create Rally" }).click();
 
-    await page.waitForURL(/\/[A-Z0-9]{6}$/i, { timeout: 15000 });
-    hexId = page.url().split("/").pop()!;
+    // Should show share sheet with hex code
+    await page.waitForSelector('text="Share"', { timeout: 15000 });
+    const url = page.url();
+    const match = url.match(/\/([A-Z0-9]{6})/i);
+    if (match) {
+      hexId = match[1];
+    } else {
+      const shareText = await page.textContent("body");
+      const hexMatch = shareText?.match(/[A-Z0-9]{6}/);
+      hexId = hexMatch?.[0] ?? "";
+    }
     expect(hexId).toMatch(/^[A-Z0-9]{6}$/i);
   });
 
@@ -125,7 +140,7 @@ test.describe.serial("Rally full lifecycle", () => {
     await page.goto(`/${hexId}`);
 
     await expect(page.getByText("E2E Test Hangout")).toBeVisible();
-    await expect(page.getByText("Vote on what to do")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Vote on what to do" })).toBeVisible();
 
     await page.getByRole("button", { name: "Vote on what to do" }).click();
     await page.waitForURL(`**/${hexId}/vote`, { timeout: 10000 });
@@ -142,15 +157,21 @@ test.describe.serial("Rally full lifecycle", () => {
     }
 
     await page.goto(`/${hexId}/vote`);
-    await expect(page.getByText("What's the vibe?")).toBeVisible();
 
+    // Step 1: Budget
+    await expect(page.getByText("Budget")).toBeVisible();
     await page.getByRole("button", { name: "$$", exact: true }).click();
+
+    // Step 2: Vibe
+    await expect(page.getByText("Vibe")).toBeVisible();
     await page.getByRole("button", { name: "Chill" }).click();
+
+    // Step 3: Distance — scroll or wait for section
     await page.getByRole("button", { name: "Nearby" }).click();
 
-    await page.getByRole("button", { name: "Submit my picks" }).click();
+    // Submit
+    await page.getByRole("button", { name: "Lock it in" }).click();
     await page.waitForURL(`**/${hexId}/waiting`, { timeout: 10000 });
-    await expect(page.getByText("Finding the perfect plan")).toBeVisible();
   });
 
   test("5 - View recommendations after manual injection", async ({ page }) => {
@@ -167,17 +188,22 @@ test.describe.serial("Rally full lifecycle", () => {
     }
 
     await page.goto(`/${hexId}/recommendations`);
-    await expect(page.getByText("Perfect for your group")).toBeVisible();
+
+    // Owner sees the recommendation selection UI
+    await expect(page.getByText("Choose the spot")).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText("The Test Cafe")).toBeVisible();
     await expect(page.getByText("Sunset Park Hangout")).toBeVisible();
     await expect(page.getByText("Jazz Lounge Downtown")).toBeVisible();
 
+    // Select a recommendation
     await page.getByText("The Test Cafe").click();
-    await page.getByRole("button", { name: "Lock in my pick" }).click();
+    await page.getByRole("button", { name: "Choose this spot" }).click();
 
-    await expect(page.getByText("Vote for your favorite")).toBeVisible();
-    await expect(page.getByRole("button", { name: "See Results" })).toBeVisible();
+    // Confirm dialog
+    await page.getByRole("button", { name: "Lock it in" }).click();
+
+    await page.waitForURL(`**/${hexId}/result`, { timeout: 10000 });
   });
 
   test("6 - View result page", async ({ page }) => {
@@ -192,8 +218,8 @@ test.describe.serial("Rally full lifecycle", () => {
 
     await page.goto(`/${hexId}/result`);
 
-    await expect(page.getByText("It's decided!")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "The Test Cafe" })).toBeVisible();
+    await expect(page.getByText("It's decided")).toBeVisible();
+    await expect(page.getByText("The Test Cafe")).toBeVisible();
     await expect(page.getByText("Open in Maps")).toBeVisible();
   });
 
@@ -210,13 +236,14 @@ test.describe.serial("Rally full lifecycle", () => {
     await page.goto(`/${hexId}/result`);
     await expect(page.getByText("How was it?")).toBeVisible();
 
-    const experienceCircles = page.locator("h3:has-text('Overall experience') + div button");
-    await experienceCircles.first().click();
+    // Thumbs up button (first button in the feedback area)
+    const thumbButtons = page.locator("section").last().locator("button").first();
+    await thumbButtons.click();
 
     await page.getByRole("button", { name: "Great vibe" }).click();
     await page.getByRole("button", { name: "Submit feedback" }).click();
 
-    await expect(page.getByText("Thanks for the feedback!")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Thanks!")).toBeVisible({ timeout: 10000 });
   });
 
   test("8 - Rally appears on dashboard", async ({ page }) => {

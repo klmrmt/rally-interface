@@ -2,6 +2,26 @@ import type { ApiResponse } from "./types";
 
 const API_BASE = "/rally-api";
 
+const AUTH_EXPIRED_PATTERNS = [
+  "log in again",
+  "token expired",
+  "invalid token",
+  "jwt expired",
+  "unauthorized",
+];
+
+function isAuthExpiredMessage(message: string): boolean {
+  const lower = message.toLowerCase();
+  return AUTH_EXPIRED_PATTERNS.some((p) => lower.includes(p));
+}
+
+function handleAuthExpired() {
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("authUser");
+  sessionStorage.removeItem("participantToken");
+  window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -27,10 +47,29 @@ async function request<T>(
     headers,
   });
 
+  if (res.status === 401) {
+    let message = "Unauthorized";
+    try {
+      const body = await res.json();
+      message = body.message || message;
+    } catch {}
+    if (isAuthExpiredMessage(message)) {
+      handleAuthExpired();
+    }
+    throw new Error(message);
+  }
+
   const data: ApiResponse<T> = await res.json();
 
   if (!res.ok || !data.success) {
-    throw new Error(data.message || "Request failed");
+    let message = data.message || "Request failed";
+    if (data.data?.errors?.length) {
+      message = data.data.errors.map((e: { message: string }) => e.message).join(". ");
+    }
+    if (isAuthExpiredMessage(message)) {
+      handleAuthExpired();
+    }
+    throw new Error(message);
   }
 
   return data.data as T;
@@ -139,6 +178,7 @@ export const api = {
       participantCount: number;
       votingClosesAt: string | null;
       hasVoted: boolean;
+      isOwner: boolean;
       participants: Array<{ id: string; displayName: string }>;
     }>(`/session/${hexId}/votes`),
 
@@ -153,17 +193,18 @@ export const api = {
         distanceLabel: string | null;
         priceLevel: string | null;
         rating: number | null;
+        imageUrl: string | null;
         mapsUrl: string | null;
         latitude: number | null;
         longitude: number | null;
+        address: string | null;
       }>;
-      voteTally: Array<{ recommendationId: string; count: number }>;
-      finalVoteCount: number;
       participantCount: number;
+      isOwner: boolean;
     }>(`/session/${hexId}/recommendations`),
 
-  submitPick: (hexId: string, recommendationId: string) =>
-    request<{ vote: unknown }>(`/session/${hexId}/pick`, {
+  selectWinner: (hexId: string, recommendationId: string) =>
+    authRequest<{ recommendation: unknown }>(`/session/${hexId}/select`, {
       method: "POST",
       body: JSON.stringify({ recommendationId }),
     }),
@@ -178,11 +219,12 @@ export const api = {
         whyItFits: string | null;
         priceLevel: string | null;
         rating: number | null;
+        imageUrl: string | null;
         mapsUrl: string | null;
         latitude: number | null;
         longitude: number | null;
+        address: string | null;
       } | null;
-      tally: Array<{ recommendationId: string; count: number }>;
       recommendations: Array<{
         id: string;
         name: string;
@@ -190,9 +232,11 @@ export const api = {
         whyItFits: string | null;
         priceLevel: string | null;
         rating: number | null;
+        imageUrl: string | null;
         mapsUrl: string | null;
         latitude: number | null;
         longitude: number | null;
+        address: string | null;
       }>;
     }>(`/session/${hexId}/result`),
 
@@ -202,12 +246,27 @@ export const api = {
       body: JSON.stringify({ liked, tags }),
     }),
 
+  closeVoting: (hexId: string) =>
+    authRequest<void>(`/session/${hexId}/close-voting`, {
+      method: "POST",
+    }),
+
+  generateRecommendations: (hexId: string) =>
+    authRequest<{ recommendations: Array<unknown> }>(
+      `/session/${hexId}/generate-recommendations`,
+      { method: "POST" },
+    ),
+
   createRally: (data: {
     groupName: string;
     callToRally?: string;
     hangoutDateTime: string;
     location?: string;
     radiusMiles?: number;
+    latitude?: number;
+    longitude?: number;
+    votingDurationMinutes?: number;
+    draftId?: string;
   }) =>
     authRequest<{
       id: string;
@@ -218,8 +277,80 @@ export const api = {
       status: string;
       location: string | null;
       radiusMiles: number | null;
+      latitude: number | null;
+      longitude: number | null;
+      votingClosesAt: string | null;
     }>("/rally/create", {
       method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getDrafts: () =>
+    authRequest<{
+      drafts: Array<{
+        id: string;
+        userId: string;
+        step: number;
+        data: Record<string, unknown>;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>("/rally/drafts"),
+
+  createDraft: (step: number, data: Record<string, unknown>) =>
+    authRequest<{
+      id: string;
+      userId: string;
+      step: number;
+      data: Record<string, unknown>;
+      createdAt: string;
+      updatedAt: string;
+    }>("/rally/drafts", {
+      method: "POST",
+      body: JSON.stringify({ step, data }),
+    }),
+
+  updateDraft: (id: string, step: number, data: Record<string, unknown>) =>
+    authRequest<{
+      id: string;
+      userId: string;
+      step: number;
+      data: Record<string, unknown>;
+      createdAt: string;
+      updatedAt: string;
+    }>(`/rally/drafts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ step, data }),
+    }),
+
+  deleteDraft: (id: string) =>
+    authRequest<void>(`/rally/drafts/${id}`, {
+      method: "DELETE",
+    }),
+
+  updateRally: (hexId: string, data: {
+    groupName?: string;
+    callToRally?: string;
+    hangoutDateTime?: string;
+    location?: string | null;
+    radiusMiles?: number | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) =>
+    authRequest<{
+      id: string;
+      hexId: string;
+      groupName: string;
+      scheduledTime: string;
+      callToAction: string;
+      status: string;
+      location: string | null;
+      radiusMiles: number | null;
+      latitude: number | null;
+      longitude: number | null;
+      votingClosesAt: string | null;
+    }>(`/rally/${hexId}`, {
+      method: "PATCH",
       body: JSON.stringify(data),
     }),
 };
